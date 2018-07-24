@@ -1,0 +1,1024 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8"/>
+    <title>Standardize Testing in Python</title>
+
+    <meta name="description"
+          content="In this talk, Bernat will introduce tox, an open source tool with the bold vision of standardizing testing. From a CIs point of view, testing contains much more than just unit and/or integration tests; other things like code style checks, packaging, testing under various versions of Python, and checking that documentation still generates, are just as important. Things quickly start to spiral out of control once you add into the mix that there are many tools and ways to accomplish each of these tasks. In this talk, we will learn how tox tries to abstract away all this complexity, how to easily run CI tests on your local machine, and how one can use this tool inside your CI frameworks to ensure high quality and easily maintainable packages."/>
+    <meta name="author" content="Bernat Gabor"/>
+
+    <meta name="apple-mobile-web-app-capable" content="yes"/>
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+    <link rel="stylesheet" href="./node_modules/reveal.js/css/reveal.css"/>
+    <link rel="stylesheet" href="./node_modules/reveal.js/css/theme/solarized.css"/>
+    <link rel="stylesheet"
+          href="./node_modules/highlight.js/styles/solarized-light.css"/>
+    <link rel="shortcut icon" type="image/png" href="./img/bloomberg_logo_github.png"/>
+
+    <style>
+        body {
+            background-color: white !important;
+        }
+
+        ::selection {
+            background: lightblue; /* WebKit/Blink Browsers */
+        }
+
+        mark {
+            background-color: greenyellow;
+        }
+
+        section.present {
+            display: flex !important;
+            flex-direction: column;
+            align-items: center;
+            align-content: stretch;
+            justify-content: flex-start;
+            height: 100% !important;
+            width: 100% !important;
+        }
+
+        .reveal pre {
+            box-shadow: unset;
+            margin: 0 auto;
+        }
+
+        .reveal .controls {
+            bottom: unset;
+            top: 10px;
+        }
+
+        .imgContainer {
+            display: flex !important;
+            flex-direction: column;
+            align-items: center;
+            align-content: stretch;
+            justify-content: flex-start;
+            margin-bottom: 90px !important;
+        }
+
+        .imgContainer p {
+            font-size: 12px;
+            margin: 0 0 !important;
+        }
+
+        .imgContainer img {
+            margin: 0 0 !important;
+            width: auto;
+            height: auto;
+            max-height: 950px;
+        }
+
+        .centerFlex {
+            justify-content: center !important;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="reveal">
+    <div class="slides">
+
+        <section class="centerFlex">
+            <h1>Standardize Testing in Python</h1>
+            <h5>tox primer</h5>
+            <p>
+                <small>by <a href="https://github.com/gaborbernat">Bernat Gabor</a> /
+                    <a href="https://twitter.com/gjbernat">@gjbernat</a> /
+                    <a href="https://bernat.tech">bernat.tech</a> /
+                    <a href="https://github.com/bloomberg">Bloomberg</a>
+                </small>
+                <br/>
+            </p>
+        </section>
+
+        <section>
+            <h3>Why do I need this?</h3>
+
+            <div class="imgContainer">
+                <img src="img/why.jpg" alt="why"/>
+                <p><a href="https://pixabay.com/en/pug-dog-black-face-pastel-head-357354/">&copy;
+                    CC0 Creative Commons</a></p>
+            </div>
+
+        </section>
+
+        <section class="centerFlex">
+            <h3>elements of a Python app/library</h3>
+            <ul>
+                <li>business logic 😎</li>
+                <li class="fragment">tests - unit and integration</li>
+                <li class="fragment">packaging</li>
+                <li class="fragment">documentation</li>
+                <li class="fragment">type checks</li>
+                <li class="fragment">static code analysis/style checks</li>
+                <li class="fragment" style="color: gray">support multiple Python versions</li>
+                <li class="fragment" style="color: gray">support multiple versions of
+                    dependencies
+                </li>
+                <li class="fragment">quickly set up DEV environment</li>
+            </ul>
+            <p class="fragment" style="margin-top : 1em; color: red">😱 assure QC for each after
+                every commit!!! 😱</p>
+        </section>
+
+        <section class="centerFlex">
+            <h3>wait, we have a tool for that! 💡</h3>
+            <ul>
+                <li class="fragment">tests: <i>pytest, nosetest, nose2, etc.</i></li>
+                <li class="fragment">packaging
+                    <ul>
+                        <li>library: <i>setuptools, flit, poetry</i></li>
+                        <li>application: <i>PEX, XAR</i></li>
+                    </ul>
+                </li>
+                <li class="fragment">documentation generation: <i>sphinx, mkdocs</i></li>
+                <li class="fragment">static code analysis/style checks: <i>black, flake8,
+                    pylint </i>
+                </li>
+                <li class="fragment" style="color: gray">multiple Python versions:
+                    <i>virtualenv, pyenv, pipenv, etc.</i>
+                </li>
+                <li class="fragment" style="color: gray">multiple versions of dependencies:
+                    <i>virtualenv, pyenv, pipenv, etc.</i>
+                </li>
+            </ul>
+            <p class="fragment" style="margin-top : 1em; color: red">make sure to invoke all those,
+                after each commit 😢
+            </p>
+        </section>
+
+        <section>
+            <h3>😞 however 😞</h3>
+            <ul>
+                <li>every tool has its own interface</li>
+                <li class="fragment">steep learning curve for someone new to the project
+                </li>
+
+                <li class="fragment">triggering the reaction of
+
+                    <div class="imgContainer">
+                        <img src="img/sad.jpg" alt="sad"/>
+                        <p><a href="https://www.flickr.com/photos/90692443@N05/8239219385">&copy;
+                            Attribution 2.0 Generic (CC BY 2.0)</a></p>
+                    </div>
+                </li>
+            </ul>
+
+
+        </section>
+
+
+        <section class="centerFlex">
+            <h3>How to improve on that?</h3>
+            <ul>
+                <li>Create a CONTRIBUTING file detailing each tool</li>
+                <li class="fragment">Write a shell script that invokes all of those</li>
+                <li class="fragment">Write a makefile</li>
+            </ul>
+        </section>
+
+
+        <section class="centerFlex">
+            <h3>Writing a shell script</h3>
+            <p><b>run_it_all.bash</b></p>
+            <pre style="font-size: 0.55em">
+                    <code class="lang-bash" data-trim>
+                    set -x                            # stop if any of these fails
+                    python3.7 setup.py sdist          # package it
+                    python3.7 install .               # test packaging
+                    python3.7 -m pytest               # run unit test
+                    python3.7 -m mypy                 # run type checker
+                    python3.7 -m flake8               # run code style check
+                    sphinx-build doc/conf.py -d build # generate documentation
+                    </code>
+                </pre>
+            <div>
+                <p class="fragment" style="text-align: left; margin-bottom: 0">Reasonable. However,
+                    now it would be
+                    nice
+                    to:</p>
+                <ul>
+                    <li class="fragment">to add virtual environments to it</li>
+                    <li class="fragment">run all checks regardless, and print report</li>
+                    <li class="fragment">run checks in parallel</li>
+            </div>
+
+        </section>
+
+        <section class="centerFlex">
+            <h3>Writing a shell script</h3>
+            <h5>venv - virtualenv</h5>
+            <ul>
+                <li>added in Python 3.3 (backported to Python 2.7)</li>
+                <li>support for creating lightweight <i>“virtual environments”</i> with their own
+                    site directories
+                </li>
+            </ul>
+            <p></p>
+        </section>
+
+        <section class="centerFlex">
+            <h3>Writing a shell script</h3>
+            <h5>venv - virtualenv</h5>
+
+            <div style="width: 100%">
+                <p style="margin-bottom: 0; text-align: left">usage by activate/deactivate:</p>
+                <pre style="font-size: 0.4em"><code class="hljs" data-trim>
+                    python -m venv env # create virtual environment
+                    ./env/bin/activate # activate virtual env
+                    pip install -r requirements.txt # install dependencies
+                    python -m pytest         # call pytest
+                    deactivate               # deactivate
+                    </code>
+                    </pre>
+            </div>
+
+            <div class="fragment" style="width: 100%">
+                <p style="margin-bottom: 0; text-align: left">you can also directly use
+                    these:</p>
+                <pre style="font-size: 0.4em"><code class="hljs" data-trim>
+                    python -m venv env             # create virtual environment
+                    ./env/pip install -r requirements.txt # install dependencies
+                    ./env/python -m pytest         # call pytest
+                    </code></pre>
+            </div>
+
+            <p></p>
+        </section>
+
+        <section class="centerFlex">
+            <h3>Writing a shell script</h3>
+            <p><b>run_it_all.bash</b></p>
+            <pre style="font-size: 0.4em">
+                    <code class="lang-bash" data-trim>
+                    set -x                            # stop if any of these fails
+                    python3.7 -m virtualenv py27      # create venv
+                    ./py27/bin/activate               # activate venv
+                    python setup.py sdist             # package it
+                    python install .                  # test deploy
+                    python -m pytest                  # run unit test
+                    python -m pylint                  # run static code analysis
+                    python -m flake8                  # run code style check
+                    sphinx-build doc/conf.py -d build # generate documentation
+                    deactivate                        # deactivate
+                    </code>
+                </pre>
+            <div>
+                <p style="text-align: left">that starts to be hard to:</p>
+                <ul class="fragment">
+                    <li>read - progress reporting?</li>
+                    <li class="fragment">maintain</li>
+                    <li class="fragment">it looks error prone (e.g. always deactivate virtual
+                        environment)
+                    </li>
+                    <li class="fragment">and it's just one Python version defined</li>
+                    <li class="fragment">while supporting one platform</li>
+                </ul>
+            </div>
+        </section>
+
+        <section>
+            <h3>there must be a better way</h3>
+
+            <div class="imgContainer fragment">
+                <img src="img/pug_jump.jpg" alt="run"/>
+                <p><a href="https://pxhere.com/da/photo/1273698">&copy;CC0 Public Domain</a></p>
+            </div>
+
+        </section>
+
+        <section class="centerFlex">
+            <h1><a href="https://tox.readthedocs.io">tox</a></h1>
+            <h3>merge CI and shell-based testing</h3>
+            <h5><a href="https://tox.readthedocs.org">https://tox.readthedocs.org</a></h5>
+        </section>
+
+        <section class="centerFlex">
+            <h3>tox</h3>
+            <div>
+                <p style="text-align: left">allows for a Python project:</p>
+                <ul style="text-align: left">
+                    <li>to define all tools in one place</li>
+                    <li class="fragment">with their configuration</li>
+                    <li class="fragment">while having a central way of invoking each of them</li>
+                    <li class="fragment">inside an isolated and reproducible environment.
+                    </li>
+                </ul>
+            </div>
+        </section>
+
+        <section class="centerFlex">
+            <h3>tox - what it is</h3>
+            <ul>
+                <li>python cli tool:
+                    <ul>
+                        <li class="fragment">install via:
+                            <ul>
+                                <li><i>pip install tox</i></li>
+                            </ul>
+                        </li>
+                        <li class="fragment">invoke via:
+                            <ul>
+                                <li><i>python -m tox</i></li>
+                                <li><i>tox</i></li>
+                            </ul>
+                        </li>
+                    </ul>
+                </li>
+                <li class="fragment">manage, create and run reproducible test environments</li>
+            </ul>
+        </section>
+
+        <section><h1>how it works</h1>
+            <div class="imgContainer">
+                <img src="img/how.jpg" alt="run"/>
+                <p><a href="https://pxhere.com/en/photo/62134">&copy;CC0 Public Domain</a></p>
+            </div>
+
+        </section>
+
+        <section>
+            <h3>flow diagram</h3>
+            <div style="text-align: left">to see phases and their output details:</div>
+            <pre style="font-size: 0.32em">
+                    <code class="lang-bash" data-trim>
+                    tox -rvv
+                    </code>
+                </pre>
+            <div class="imgContainer"><img src="img/tox_flow.png" alt="src"/></div>
+        </section>
+
+        <section class="centerFlex">
+            <h5>configuration</h5>
+            <pre style="font-size: 0.32em">
+                    <code class="lang-ini" data-trim>
+[tox]
+envlist = py27, lint, doc
+
+[testenv]
+basepython = py27: python2.7
+             lint: python3.7
+             doc: python3.7
+             publish: python3.7
+commands = pytest {posargs}
+deps = pytest >= 3.0.0
+       pytest-cov
+
+[testenv:lint]
+deps = pylint >= 2.0.0
+commands = pylint -r n --disable=similarities src tests  {posargs}
+
+[testenv:doc]
+deps = Sphinx
+commands = sphinx-build -v -W -b html -a doc/source {toxinidir}/build/doc
+
+
+[testenv:publish]
+deps = setuptools
+       twine
+commands = python setup.py sdist bdist_wheel
+           twine upload build/*
+                    </code>
+                </pre>
+        </section>
+
+
+        <section class="centerFlex">
+            <h5>configuration</h5>
+            <pre style="font-size: 0.32em">
+                    <code class="lang-python" data-trim data-noescape>
+[tox]
+<mark>envlist = py27, lint, doc</mark>
+
+[testenv]
+basepython = py27: python2.7
+             lint: python3.7
+             doc: python3.7
+             publish: python3.7
+commands = pytest {posargs}
+deps = pytest >= 3.0.0
+       pytest-cov
+
+[testenv:lint]
+deps = pylint >= 2.0.0
+commands = pylint -r n --disable=similarities src tests  {posargs}
+
+[testenv:doc]
+deps = Sphinx
+commands = sphinx-build -v -W -b html -a doc/source {toxinidir}/build/doc
+
+
+[testenv:publish]
+deps = setuptools
+       twine
+commands = python setup.py sdist bdist_wheel
+           twine upload build/*
+                    </code>
+                </pre>
+        </section>
+
+        <section class="centerFlex">
+            <h5>configuration</h5>
+            <pre style="font-size: 0.32em">
+                    <code class="lang-python" data-trim data-noescape>
+[tox]
+envlist = <mark>py27</mark>, lint, doc
+
+[testenv]
+<mark>basepython = py27: python2.7</mark>
+             lint: python3.7
+             doc: python3.7
+             publish: python3.7
+<mark>commands = pytest {posargs}</mark>
+<mark>deps = pytest >= 3.0.0
+       pytest-cov</mark>
+
+[testenv:lint]
+deps = pylint >= 2.0.0
+commands = pylint -r n --disable=similarities src tests  {posargs}
+
+[testenv:doc]
+deps = Sphinx
+commands = sphinx-build -v -W -b html -a doc/source {toxinidir}/build/doc
+
+
+[testenv:publish]
+deps = setuptools
+       twine
+commands = python setup.py sdist bdist_wheel
+           twine upload build/*
+                    </code>
+                </pre>
+        </section>
+
+        <section class="centerFlex">
+            <h5>configuration</h5>
+            <pre style="font-size: 0.32em">
+                    <code class="lang-python" data-trim data-noescape>
+[tox]
+envlist = py27, <mark>lint</mark>, doc
+
+[testenv]
+basepython = py27: python2.7
+             <mark>lint: python3.7</mark>
+             doc: python3.7
+             publish: python3.7
+commands = pytest {posargs}
+deps = pytest >= 3.0.0
+       pytest-cov
+
+<mark>[testenv:lint]
+deps = pylint >= 2.0.0
+commands = pylint -r n --disable=similarities src tests  {posargs}
+</mark>
+[testenv:doc]
+deps = Sphinx
+commands = sphinx-build -v -W -b html -a doc/source {toxinidir}/build/doc
+
+
+[testenv:publish]
+deps = setuptools
+       twine
+commands = python setup.py sdist bdist_wheel
+           twine upload build/*
+                    </code>
+                </pre>
+        </section>
+
+        <section class="centerFlex">
+            <h5>configuration</h5>
+            <pre style="font-size: 0.32em">
+                    <code class="lang-python" data-trim data-noescape>
+[tox]
+envlist = py27, lint, <mark>doc</mark>
+
+[testenv]
+basepython = py27: python2.7
+             lint: python3.7
+             doc: python3.7
+             publish: python3.7
+commands = pytest {posargs}
+deps = pytest >= 3.0.0
+       pytest-cov
+
+[testenv:lint]
+deps = pylint >= 2.0.0
+commands = pylint -r n --disable=similarities src tests  {posargs}
+
+<mark>[testenv:doc]
+deps = Sphinx
+commands = sphinx-build -v -W -b html -a doc/source {toxinidir}/build/doc
+</mark>
+
+[testenv:publish]
+deps = setuptools
+       twine
+commands = python setup.py sdist bdist_wheel
+           twine upload build/*
+                    </code>
+                </pre>
+        </section>
+
+        <section class="centerFlex">
+            <h5>configuration</h5>
+            <pre style="font-size: 0.32em">
+                    <code class="lang-python" data-trim data-noescape>
+[tox]
+envlist = py27, lint, doc
+
+[testenv]
+basepython = py27: python2.7
+             lint: python3.7
+             doc: python3.7
+             publish: python3.7
+commands = pytest {posargs}
+deps = pytest >= 3.0.0
+       pytest-cov
+
+[testenv:lint]
+deps = pylint >= 2.0.0
+commands = pylint -r n --disable=similarities src tests  {posargs}
+
+[testenv:doc]
+deps = Sphinx
+commands = sphinx-build -v -W -b html -a doc/source {toxinidir}/build/doc
+
+<mark>
+[testenv:publish]
+deps = setuptools
+       twine
+commands = python setup.py sdist bdist_wheel
+           twine upload build/*
+</mark>
+                    </code>
+                </pre>
+        </section>
+
+        <section>
+            <h3>flow diagram</h3>
+            <div class="imgContainer"><img src="img/tox_flow.png" alt="src"/></div>
+        </section>
+
+        <section class="centerFlex">
+            <h3>packaging</h3>
+
+            <div>
+                <ul>
+                    <li>
+                        if not an application, create an installable package
+                        <pre>
+                <code class="lang-python" data-trim data-noescape>
+                    python setup.py sdist
+                    </code>
+                </pre>
+                    </li>
+                    <li class="fragment">build dependencies: same Python used as the one tox is
+                        installed into
+                    </li>
+                    <li class="fragment">long term plan PEP 517/518:
+
+                        <pre>
+                <code class="lang-python" data-trim data-noescape>
+                    # pyproject.toml
+                    [build-system]
+                    requires = [
+                        "setuptools >= 35.0.2",
+                        "setuptools_scm >= 2.0.0, <3",
+                        "wheel >= 0.29.0",
+                    ]
+                    </code>
+                </pre>
+
+                        <pre>
+                <code class="lang-python" data-trim data-noescape>
+                    pip build .
+                    </code>
+                </pre>
+                    </li>
+                </ul>
+
+            </div>
+
+        </section>
+
+
+        <section>
+            <h3>flow diagram</h3>
+            <div class="imgContainer"><img src="img/tox_flow.png" alt="src"/></div>
+        </section>
+
+
+        <section class="centerFlex">
+            <h3>create environment</h3>
+            <ul>
+                <li>if already exists, skip create and re-use</li>
+                <li class="fragment">discover a compatible Python on the system - basepython (use
+                    PATH or py.exe)
+                </li>
+                <li class="fragment">use virtualenv to create a virtual environment</li>
+            </ul>
+        </section>
+
+        <section>
+            <h3>flow diagram</h3>
+            <div class="imgContainer"><img src="img/tox_flow.png" alt="src"/></div>
+        </section>
+
+        <section class="centerFlex">
+            <h3>install dependencies and package</h3>
+            <ul>
+                <li>if dependencies changed or not yet installed
+                    <pre>
+                    <code class="lang-python" data-trim data-noescape>
+[testenv:lint]
+deps = <mark>pylint >= 2.0.0</mark>
+commands = pylint -r n --disable=similarities src tests  {posargs}
+                    </code>
+                </pre>
+                </li>
+                <li class="fragment">install previously built package, with potentially extras from
+                    setup.py
+                    <pre>
+                    <code class="lang-python" data-trim data-noescape>
+[testenv:py27]
+extras=testing
+commands = pytest.py
+                    </code>
+                  </pre>
+                    <pre>
+                    <code class="lang-python" data-trim data-noescape>
+    setup(
+        name="tox",
+        install_requires=[
+            "packaging  >= 17.1"
+        ],
+        extras_require={
+            "testing": [
+                "pytest >= 3.0.0, <4",
+                "pytest-cov >= 2.5.1, <3"
+            ]
+        }
+    )
+                    </code>
+                  </pre>
+                </li>
+                <li class="fragment">default installer pip, can be changed</li>
+            </ul>
+        </section>
+
+        <section>
+            <h3>flow diagram</h3>
+            <div class="imgContainer"><img src="img/tox_flow.png" alt="src"/></div>
+        </section>
+
+        <section class="centerFlex">
+            <h3>run commands</h3>
+            <pre>
+                    <code class="lang-bash" data-trim data-noescape>
+                    [testenv:docs]
+                    commands = sphinx-build -d "{toxworkdir}/docs_doctree" doc "{toxworkdir}/docs_out" --color -W -bhtml
+                               sphinx-build -d "{toxworkdir}/docs_doctree" doc "{toxworkdir}/docs_out" --color -W -blinkcheck
+                               python -c 'print("documentation available under file://{toxworkdir}/docs_out/index.html")'
+                    </code>
+                </pre>
+            <ul>
+                <li>invoke the test commands in the specified order</li>
+                <li class="fragment">strip OS environment variables and prepend current virtualenv
+                    bin to PATH
+                </li>
+                <li class="fragment">stop on first failure - test exit code</li>
+                <li class="fragment">failed commands will mark the tox environment as failed too
+                </li>
+                <li class="fragment">test output is streamed to the output (standard out plus
+                    error)
+                </li>
+            </ul>
+        </section>
+
+        <section>
+            <h3>flow diagram</h3>
+            <div class="imgContainer"><img src="img/tox_flow.png" alt="src"/></div>
+        </section>
+
+        <section class="centerFlex">
+            <h3>report</h3>
+            <pre>
+                    <code class="lang-bash" data-trim data-noescape>
+                    ____________________________________________ summary ____________________________________________
+                    ERROR:   py27: commands failed
+                    ERROR:   lint: commands failed
+                             doc: commands succeeded
+
+                    </code>
+                </pre>
+
+        </section>
+
+        <section>
+            <h3>flow diagram</h3>
+            <div class="imgContainer"><img src="img/tox_flow.png" alt="src"/></div>
+        </section>
+
+        <section class="centerFlex"><h1>use cases</h1>
+
+            <div class="imgContainer">
+                <img src="img/use_case.jpg" alt="run"/>
+                <p><a href="https://pixabay.com/en/pugs-pug-dogs-garden-cute-waiting-2498921/">&copy;CC0
+                    Creative Commons</a></p>
+            </div>
+        </section>
+
+        <section>
+            <h5>default env call</h5>
+            <pre style="font-size: 0.32em">
+                    <code class="lang-bash" data-trim>
+                    tox
+                    </code>
+                </pre>
+            <div class="imgContainer"><img src="img/tox_long.gif" alt="tox long run"/></div>
+        </section>
+
+        <section>
+            <h5>reuse env call</h5>
+            <pre style="font-size: 0.32em">
+                    <code class="lang-bash" data-trim>
+                    tox
+                    </code>
+                </pre>
+            <div class="imgContainer"><img src="img/tox_cached.gif" alt="tox long run"/></div>
+        </section>
+
+        <section>
+            <h5>subset of environments</h5>
+            <pre style="font-size: 0.32em">
+                    <code class="lang-bash" data-trim>
+                    tox -e py27,lint
+                    </code>
+                </pre>
+            <img src="img/tox_sel_call.gif" alt="sel"/>
+        </section>
+
+        <section>
+            <h3>list environments with description</h3>
+            <pre style="font-size: 0.32em">
+                    <code class="lang-bash" data-trim data-noescape>
+                    [testenv:docs]
+                    <mark>description = invoke sphinx-build to build the HTML docs and check that all links are valid</mark>
+                    basepython = python3.7
+                    commands = sphinx-build -d "{toxworkdir}/docs_doctree" doc "{toxworkdir}/docs_out" --color -W -bhtml
+                               sphinx-build -d "{toxworkdir}/docs_doctree" doc "{toxworkdir}/docs_out" --color -W -blinkcheck
+                               python -c 'print("documentation available under file://{toxworkdir}/docs_out/index.html")'
+                    </code>
+                </pre>
+            <div class="imgContainer">
+                <img style="max-height: 800px" src="img/tox_description.gif" alt="list envs"/>
+            </div>
+        </section>
+
+
+        <section>
+            <h3>posargs - pass args to tools</h3>
+            <pre style="font-size: 0.32em">
+                    <code class="lang-bash" data-trim>
+                    # commands = py.test {posargs}
+                    tox -e py27 -- -vvv -x --pdb
+                    </code>
+                </pre>
+            <div class="imgContainer"><img src="img/tox_posargs.gif" alt="posargs"/></div>
+        </section>
+
+        <section>
+            <h3>run in parallel</h3>
+            <div>separate project under tox organization: <i>detox</i></div>
+            <div class="imgContainer"><img src="img/detox.gif" alt="detox"/></div>
+        </section>
+
+        <section>
+            <h3>generate developer environment</h3>
+            <pre style="font-size: 0.32em">
+                    <code class="lang-bash" data-trim data-noescape>
+                    [testenv:dev]
+                    description = generate the developer enviroment
+                    <mark>usedevelop = True</mark>
+                    basepython = python3.7
+                    deps = <mark>{[testenv]deps}</mark>
+                           <mark>{[testenv:doc]deps}</mark>
+                           pip >= 10.0.0
+                           tox >= 2.9.1, < 3
+                    commands = pip list --format=columns
+                               python -c 'import sys;print(sys.version);print(sys.executable)'
+                    </code>
+                </pre>
+            <div class="imgContainer"><img style="max-height: 60%" src="img/tox_dev.gif"
+                                           alt="posargs"/></div>
+        </section>
+
+        <section>
+            <h3>easily set python within PyCharm</h3>
+            <h5><a href="nokia/PyVenvManage">nokia/PyVenvManage</a></h5>
+            <div class="imgContainer"><img src="img/pyvenv.gif" alt="posargs"/></div>
+        </section>
+
+        <section>
+            <h3>run only environments that we can</h3>
+            <pre style="font-size: 0.32em">
+                    <code class="lang-bash" data-trim data-noescape>
+                    [tox]
+                    envlist = py26, py27, lint, doc
+                    skip_missing_interpreters = true
+
+                    [testenv]
+                    basepython = py26: python2.6
+                                 py27: python2.7
+                                 lint: python3.7
+                                 doc: python3.7
+                    </code>
+                </pre>
+            <div class="imgContainer"><img style="max-height: 60%" src="img/tox_skip_env.gif"
+                                           alt="skip envs"/></div>
+        </section>
+
+        <section class="centerFlex">
+            <h3>use factor expression to specify complex combinations</h3>
+            <pre style="font-size: 0.32em">
+                    <code class="lang-bash" data-trim data-noescape>
+                    [tox]
+                    envlist = py26-django{14,15,16},
+                              py27-django{14,15,16,17,18},
+                              py{36,37}-django{17,18, -master}
+
+                    [testenv]
+                    deps =
+                      coverage
+                      django14: Django>=1.4,<1.5
+                      django15: Django>=1.5,<1.6
+                      django16: Django>=1.6,<1.7
+                      django17: Django>=1.7,<1.8
+                      django18: Django>=1.8,<1.9
+                      django-master: https://github.com/django/django/archive/master.tar.gz
+                      six
+                    commands = coverage run --branch --parallel-mode setup.py test
+                    </code>
+                </pre>
+
+            <pre style="font-size: 0.32em">
+                    <code class="lang-bash" data-trim data-noescape>
+                            py26-django14
+                            py26-django15
+                            py26-django16
+                            py27-django14
+                            py27-django15
+                            py27-django16
+                            py27-django17
+                            py27-django18
+                            py36-django17
+                            py36-django18
+                            py36-django-master
+                            py37-django17
+                            py37-django18
+                            py37-django-master
+                    </code>
+                </pre>
+
+        </section>
+
+        <section class="centerFlex">
+            <h3>ci integration</h3>
+            <ul>
+                <li>run every environment in the CI too</li>
+                <li>ensure you have all versions of Python you require</li>
+                <li class="fragment">for example, for travis you can use tox-travis:
+                    <pre>
+                    <code class="lang-bash" data-trim data-noescape>
+                    sudo: false
+                    language: python
+                    python:
+                      - "2.7"
+                      - "3.4"
+                    install: pip install tox-travis
+                    script: tox
+                    </code>
+                </pre>
+                </li>
+            </ul>
+        </section>
+
+
+        <section class="centerFlex"><h1>summary</h1>
+
+            <div class="imgContainer">
+                <img src="img/summary.jpeg" alt="run"/>
+                <p><a href="https://pixnio.com/fauna-animals/dogs/pug-puppy-dog-canine-purebred">&copy;public
+                    domain (CC0)</a></p>
+            </div>
+        </section>
+
+        <section class="centerFlex">
+            <h3>weaknesses</h3>
+            <ul>
+                <li>dependency updates - env created once and not updated, no warnings about
+                    deps mismatch<br/>
+                    solution: force recreate, after changing deps
+                    <pre style="font-size: 0.32em">
+                    <code class="lang-bash" data-trim>
+                    tox -r
+                    </code>
+                </pre>
+                </li>
+                <li class="fragment">build dependencies still need setup - will be solved by
+                    adopting PEP 517/518
+                </li>
+            </ul>
+        </section>
+
+        <section class="centerFlex">
+            <h3>Strengths</h3>
+            <ul>
+                <li>simplifies contributor ramp-up, run any test via a single command, requires:
+                    <ul>
+                        <li>tox</li>
+                        <li>compatible Python version</li>
+                    </ul>
+                </li>
+                <li class="fragment">run locally exactly what would be run in CI</li>
+                <li class="fragment">cross platform: Linux, macOS and Windows</li>
+                <li class="fragment">readable configuration instead ugly shell script boilerplate
+                </li>
+            </ul>
+        </section>
+
+        <section class="centerFlex">
+            <h3>Strengths</h3>
+            <h5>plugin system</h5>
+
+            <div class="imgContainer">
+                <img src="img/tox_plugins.png" alt="tox plugins"/>
+            </div>
+        </section>
+
+        <section>
+            <h1>thank you</h1>
+            <h3>question time</h3>
+            <h5><a href="https://tox.readthedocs.org">https://tox.readthedocs.org</a></h5>
+
+            <div class="imgContainer">
+                <img src="img/thats_all_folks.jpg" alt="that's all folks"/>
+                <p><a href="https://pixabay.com/en/pug-dog-pet-animal-puppy-cute-801826/">&copy;
+                    CC0 Creative Commons</a></p>
+            </div>
+        </section>
+
+        <section class="centerFlex">
+            <h1>we're hiring</h1>
+            <h3><a href="https://bloomberg.com/engineering">https://bloomberg.com/engineering</a>
+            </h3>
+
+            <p>see <a href="http://TechAtBloomberg.com">TechAtBloomberg.com</a> / <a
+                    href="https://twitter.com/techatbloomberg">@TechAtBloomberg</a></p>
+        </section>
+
+    </div>
+</div>
+
+<div style="position:absolute; bottom: 10px; right: 50px; width: 250px; z-index: 1000">
+    <p style="color: #767676; font-family: Arial, sans-serif; font-weight: bold; font-size: 3em; margin: 5px 0">
+        Bloomberg</p>
+    <p style="text-align: center; font-family: Arial, sans-serif; font-weight: bold; font-size: 0.8em; margin: 0 auto">
+        &copy; 2018 Bloomberg Finance L.P. <br/>
+        All rights reserved.</p>
+</div>
+
+<script src="node_modules/reveal.js/lib/js/head.min.js"></script>
+<script src="node_modules/reveal.js/js/reveal.js"></script>
+<script>
+    Reveal.initialize({
+
+        height: '95%',
+        width: '95%',
+        center: true,
+        history: true,
+
+        transition: 'none',
+        theme: Reveal.getQueryHash().theme,
+
+        dependencies: [{
+            src: 'node_modules/reveal.js/lib/js/classList.js',
+            condition: function () {
+                return !document.body.classList;
+            }
+        }, {
+            src: 'node_modules/reveal.js/plugin/highlight/highlight.js',
+            async: true,
+            callback: function () {
+                hljs.initHighlightingOnLoad();
+            }
+        }]
+    });
+</script>
+</body>
+
+</html>
